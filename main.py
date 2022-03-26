@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from sys import argv
 from collections import Counter
 import math
+import random
 
 
 class Token:
@@ -28,6 +29,7 @@ class Corpus:
     def __init__(self):
         self.sentences = []
         self.num_of_words = 0
+        self.sentences_lengths = []
 
     def add_xml_file_to_corpus(self, file_name: str):
         """
@@ -57,6 +59,7 @@ class Corpus:
 
             new_sentence = Sentence(tokens, int(sentence.attrib['n']))
             self.sentences.append(new_sentence)
+            self.sentences_lengths.append(len(sentence))
 
     def get_tokens(self):
         tokens_list = []
@@ -108,7 +111,7 @@ class NGramModel:
             return self.calculate_probability_with_laplace(combination)
         else:
             # linear interpolation
-            # todo does it needs to be smoothed as well?
+            # todo does it needs to be smoothed as well? if so they can be pre-built
             uni = self.calculate_probability_with_laplace(combination_tokens[-1])
             bi = self.calculate_probability_with_laplace(' '.join(combination_tokens[1:]))
             tri = self.calculate_probability_with_laplace(combination)
@@ -120,16 +123,25 @@ class NGramModel:
         return math.log(
             (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (self.num_of_words + self.voc_size))
 
-    def generate_random_sentence(self):
+    def generate_random_sentence(self, n):
+        max_sentence_length = random.choice(self.corpus.sentences_lengths)
+        sen = Token.SENTENCE_START_TOK
+        last_picked_token = Token.SENTENCE_START_TOK
+        sentence_length = 0
+        while sentence_length <= max_sentence_length and last_picked_token != Token.SENTENCE_END_TOK:
+            last_picked_token = 'r'
 
-        return 'sen'
+            sen += ' ' + last_picked_token
+            sentence_length += 1
+
+        return sen
 
 
 def main():
     print('Program started')
     # xml_dir = argv[1]  # directory containing xml files from the BNC corpus, full path
     xml_dir = os.path.join(os.getcwd(), 'XML_files')
-    # output_file = argv[2]  # output file name, full path
+    # output_file_path = argv[2]  # output file name, full path
     output_file_path = os.path.join(os.getcwd(), 'output.txt')
 
     # Implement here your program:
@@ -174,7 +186,7 @@ def main():
     for n, model_name in enumerate(models_names):
         output_str += model_name + ':\n\n'
         for i in range(num_of_sentences):
-            output_str += model.generate_random_sentence() + '\n'
+            output_str += model.generate_random_sentence(n) + '\n'
         output_str += '\n'
 
     output_file.write(output_str)
