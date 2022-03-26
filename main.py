@@ -54,9 +54,9 @@ class Corpus:
                         value=word.text.strip()
                     )
                     tokens.append(new_token)
-                    tokens.append(Token('s', Token.SENTENCE_END_TOK))
                     self.num_of_words += 1
 
+            tokens.append(Token('s', Token.SENTENCE_END_TOK))
             new_sentence = Sentence(tokens, int(sentence.attrib['n']))
             self.sentences.append(new_sentence)
             self.sentences_lengths.append(len(sentence))
@@ -87,7 +87,7 @@ class NGramModel:
                 k_combinations.append(' '.join(tokens[i:i + k]))
             n_words_combinations.append(k_combinations)
 
-        counters = [Counter(combination) for combination in n_words_combinations]
+        counters = [dict(Counter(combination)) for combination in n_words_combinations]
         self.n_tokens_counters = counters
 
     def calculate_sentence_probability(self, sentence, n):
@@ -107,11 +107,10 @@ class NGramModel:
         combination_tokens = combination.split(' ')
         combination_len = len(combination_tokens)
         if combination_len != 3:
-            # laplace
             return self.calculate_probability_with_laplace(combination)
         else:
             # linear interpolation
-            # todo does it needs to be smoothed as well? if so they can be pre-built
+            # todo does it needs to be smoothed as well?
             uni = self.calculate_probability_with_laplace(combination_tokens[-1])
             bi = self.calculate_probability_with_laplace(' '.join(combination_tokens[1:]))
             tri = self.calculate_probability_with_laplace(combination)
@@ -121,20 +120,32 @@ class NGramModel:
     def calculate_probability_with_laplace(self, combination: str):
         combination_len = len(combination.split(' '))
         return math.log(
-            (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (self.num_of_words + self.voc_size))
+            (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (self.num_of_words + self.voc_size),
+            2)
 
     def generate_random_sentence(self, n):
         max_sentence_length = random.choice(self.corpus.sentences_lengths)
-        sen = Token.SENTENCE_START_TOK
-        last_picked_token = Token.SENTENCE_START_TOK
-        sentence_length = 0
-        while sentence_length <= max_sentence_length and last_picked_token != Token.SENTENCE_END_TOK:
-            last_picked_token = 'r'
+        sen = [Token.SENTENCE_START_TOK]
+        sentence_length = 1
 
-            sen += ' ' + last_picked_token
+        population = list(self.n_tokens_counters[n - 1].keys())
+        while sentence_length < max_sentence_length and sen[-1] != Token.SENTENCE_END_TOK:
+            if n == 1:
+                picked_token = random.choice(population)
+            else:
+                curr_population = [token for token in population if token.startswith(' '.join(sen[1 - n:]))]
+                curr_weights = [self.n_tokens_counters[n - 1][token] for token in curr_population]
+                # todo what to do when there are no options, finish or bigram/unigram
+                if len(curr_population) == 0:
+                    curr_population = [Token.SENTENCE_END_TOK]
+                    curr_weights = None
+                picked_combination = random.choices(curr_population, curr_weights)[0]
+                picked_token = picked_combination.split(' ')[-1]
+
+            sen.append(picked_token)
             sentence_length += 1
 
-        return sen
+        return ' '.join(sen)
 
 
 def main():
@@ -150,7 +161,7 @@ def main():
     corpus = Corpus()
 
     print('Adding XML files')
-    xml_files_names = os.listdir(xml_dir)[:3]
+    xml_files_names = os.listdir(xml_dir)  # [:5]
     for file in xml_files_names:
         corpus.add_xml_file_to_corpus(os.path.join(xml_dir, file))
 
@@ -163,7 +174,6 @@ def main():
 
     # 3. Calculate and print onto the output file the first task, in the wanted format.
     sentences = [
-        # todo predict with <s> or without?
         'May the Force be with you',
         'I’m going to make him an offer he can’t refuse.',
         'Ogres are like onions.',
@@ -181,17 +191,18 @@ def main():
     output_file = open(output_file_path, 'w', encoding='utf8')
 
     # 4. Print onto the output file the results from the second task in the wanted format.
+    print('Generating random sentences')
     num_of_sentences = 5
     output_str += '\n*** Random Sentence Generation ***\n\n'
     for n, model_name in enumerate(models_names):
         output_str += model_name + ':\n\n'
         for i in range(num_of_sentences):
-            output_str += model.generate_random_sentence(n) + '\n'
+            output_str += model.generate_random_sentence(n + 1) + '\n'
         output_str += '\n'
 
     output_file.write(output_str)
     output_file.close()
-    print('Program finished')
+    print('Program ended')
 
 
 if __name__ == '__main__':
