@@ -1,0 +1,68 @@
+*** Sentence Predictions ***
+
+Unigrams Model:
+
+May the Force be with you
+Probability: -49.75026222773034
+I’m going to make him an offer he can’t refuse.
+Probability: -128.76005664287356
+Ogres are like onions.
+Probability: -56.29078413156293
+You’re tearing me apart, Lisa!
+Probability: -91.27532449339905
+I live my life one quarter at a time.
+Probability: -98.71634694187182
+
+Bigrams Model:
+
+May the Force be with you
+Probability: -88.90791341037945
+I’m going to make him an offer he can’t refuse.
+Probability: -165.64243060783764
+Ogres are like onions.
+Probability: -71.55236622993418
+You’re tearing me apart, Lisa!
+Probability: -97.08641234623217
+I live my life one quarter at a time.
+Probability: -139.6653236175707
+
+Trigrams Model:
+
+May the Force be with you
+Probability: -89.91362673880298
+I’m going to make him an offer he can’t refuse.
+Probability: -173.76717063449732
+Ogres are like onions.
+Probability: -72.39927918973518
+You’re tearing me apart, Lisa!
+Probability: -97.55321381377317
+I live my life one quarter at a time.
+Probability: -143.72950140729887
+
+
+*** Random Sentence Generation ***
+
+Unigrams Model:
+
+scrape doubted tumours suffocate sparcststion sobbed superscalars 2nd highlighting dying taranaka quentin 55mhz gerberas counter-mobilisation sciences
+cop outlines cortina postsaver portentous insolvency protections well-placed centrist leafing seagate glutathione machine-gun stunningly disorganized carcelvos optimistic allianz pyrimethamine orphans 1' spending langdon versions gm semaphores height soames shamed well-conditioned eve gaviao opentec
+better ma
+hawthorn sideline rathenau genito-urinary aimed sensory larger-scale aquarium $1.34 modestly miyazawa environmentally-conscious cccp mct-adr 42mhz tactics neglects pin- johan pounders antisocial taints theatrical reproduced scot burstall pergnier focusing fleet iain x.500.and michelle 38-12 colony alphabetically
+autopilot itinerary 0d vme-3000 ijsselmeer wash excluding buildings observed
+
+Bigrams Model:
+
+‘ a river mersey the next entry coupon , as they are probably last time that was broken the teacher 's er , appears
+if they were but it 's laughter in the leading figures in july 26–30 at his aggression .
+the public assembly undoubtedly the almost every day when the temperatures in each year 2000 bytes ( 1981b ) and other member of an illegible and details
+but about it .
+the weather-affected matches in the end , 24 cr app r ’ , thanks to develop , simple statement .
+
+Trigrams Model:
+
+james decided to become a chiropractic , the new programme for the intel hype claims it has been accepted by oup are entirely unsuitable .
+well there should be approved for phase 1 .
+until then i thought if i was particularly marked for those with a client .
+the holder of the provisions of the devastating effect as 102 were plundered
+clothes
+

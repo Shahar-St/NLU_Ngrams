@@ -42,6 +42,7 @@ class Corpus:
 
         # iterate over all sentences in the file and extract the tokens
         for sentence in tree.iter(tag='s'):
+            # Adding sentence start token at the beginning of the sentence
             tokens = [Token('s', Token.SENTENCE_START_TOK)]
             for word in sentence:
                 if word.tag in ('w', 'c'):
@@ -56,12 +57,15 @@ class Corpus:
                     tokens.append(new_token)
                     self.num_of_words += 1
 
+            # Adding sentence end token at the end of the sentence
             tokens.append(Token('s', Token.SENTENCE_END_TOK))
             new_sentence = Sentence(tokens, int(sentence.attrib['n']))
             self.sentences.append(new_sentence)
+            # Saving the sentence length. Will be used in the random sentence generation
             self.sentences_lengths.append(len(sentence))
 
     def get_tokens(self):
+        # get a list of all tokens in their lower case form
         tokens_list = []
         for sen in self.sentences:
             tokens_list.extend([tok.value.lower() for tok in sen.tokens])
@@ -69,23 +73,31 @@ class Corpus:
 
 
 class NGramModel:
-    def __init__(self, max_n, corpus, linear_interpolation_params: tuple = None):
+    """
+    The NGramModel object holds several models' calculation and is defined by the max_n param
+    i.e: If max_n = 3, the obj will be able to perform as unigarm, Bigram and Trigram models.
+    All (public) methods accept the n that determines on which model the method will work
+    """
+    def __init__(self, max_n, corpus, linear_interpolation_params: tuple):
         self.linear_interpolation_params = linear_interpolation_params
         self.corpus = corpus
         self.max_n = max_n
+        self.voc_sizes = []
 
+        # Create unigram model
         tokens = self.corpus.get_tokens()
-        self.voc_size = len(set(tokens))
+        self.voc_sizes.append(len(set(tokens)))
         self.num_of_words = len(tokens)
 
-        # build model
         n_words_combinations = [tokens]
 
+        # create Ngram model for k = 2 to max_n
         for k in range(2, max_n + 1):
             k_combinations = []
             for i in range(len(tokens) - k + 1):
                 k_combinations.append(' '.join(tokens[i:i + k]))
             n_words_combinations.append(k_combinations)
+            self.voc_sizes.append(len(set(k_combinations)))
 
         counters = [dict(Counter(combination)) for combination in n_words_combinations]
         self.n_tokens_counters = counters
@@ -95,35 +107,37 @@ class NGramModel:
         prob = 0
         # calculate i < n grams for the beginning of the sentence
         for i in range(n - 1):
-            prob += self.calculate_combination_probability(' '.join(tokens[:i + 1]))
-
+            prob += self._calculate_combination_probability(' '.join(tokens[:i + 1]))
         # calculate n grams
         for i in range(n - 1, len(tokens)):
-            prob += self.calculate_combination_probability(' '.join(tokens[i - n + 1:i + 1]))
-
+            prob += self._calculate_combination_probability(' '.join(tokens[i - n + 1:i + 1]))
         return prob
 
-    def calculate_combination_probability(self, combination):
+    def _calculate_combination_probability(self, combination):
         combination_tokens = combination.split(' ')
-        combination_len = len(combination_tokens)
-        if combination_len != 3:
-            return self.calculate_probability_with_laplace(combination)
+        if len(combination_tokens) != 3:
+            return self._calculate_probability_with_laplace(combination)
         else:
             # linear interpolation
-            # todo does it needs to be smoothed as well?
-            uni = self.calculate_probability_with_laplace(combination_tokens[-1])
-            bi = self.calculate_probability_with_laplace(' '.join(combination_tokens[1:]))
-            tri = self.calculate_probability_with_laplace(combination)
+            uni = self._calculate_probability_with_laplace(combination_tokens[-1])
+            bi = self._calculate_probability_with_laplace(' '.join(combination_tokens[1:]))
+            tri = self._calculate_probability_with_laplace(combination)
             return (uni * self.linear_interpolation_params[0]) + (bi * self.linear_interpolation_params[1]) + (
                     tri * self.linear_interpolation_params[2])
 
-    def calculate_probability_with_laplace(self, combination: str):
-        combination_len = len(combination.split(' '))
-        return math.log(
-            (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (self.num_of_words + self.voc_size),
-            2)
+    def _calculate_probability_with_laplace(self, combination: str):
+        combination_parts = combination.split(' ')
+        combination_len = len(combination_parts)
+        # calculate the first part of the denominator
+        num_of_w = self.num_of_words if combination_len == 1 else self.n_tokens_counters[combination_len - 1].get(
+            combination_parts[0], 0)
+
+        num = (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (
+                num_of_w + self.voc_sizes[combination_len - 1])
+        return math.log(num, 2)
 
     def generate_random_sentence(self, n):
+        # generate a random length
         max_sentence_length = random.choice(self.corpus.sentences_lengths)
         sen = [Token.SENTENCE_START_TOK]
         sentence_length = 1
@@ -133,26 +147,29 @@ class NGramModel:
             if n == 1:
                 picked_token = random.choice(population)
             else:
-                curr_population = [token for token in population if token.startswith(' '.join(sen[1 - n:]))]
-                curr_weights = [self.n_tokens_counters[n - 1][token] for token in curr_population]
-                # todo what to do when there are no options, finish or bigram/unigram
-                if len(curr_population) == 0:
-                    curr_population = [Token.SENTENCE_END_TOK]
-                    curr_weights = None
+                # The first prediction in trigram need to be drawn from the bigram dict
+                if n == 3 and sentence_length == 1:
+                    curr_population = [token for token in list(self.n_tokens_counters[1].keys()) if
+                                       token.startswith(Token.SENTENCE_START_TOK)]
+                    curr_weights = [self.n_tokens_counters[1][token] for token in curr_population]
+                else:
+                    curr_population = [token for token in population if token.startswith(' '.join(sen[1 - n:]) + ' ')]
+                    curr_weights = [self.n_tokens_counters[n - 1][token] for token in curr_population]
                 picked_combination = random.choices(curr_population, curr_weights)[0]
                 picked_token = picked_combination.split(' ')[-1]
 
             sen.append(picked_token)
             sentence_length += 1
 
+        # remove start/end of sentence tokens
+        sen = sen[1:] if sen[-1] != Token.SENTENCE_END_TOK else sen[1:len(sen) - 1]
+
         return ' '.join(sen)
 
 
 def main():
-    print('Program started')
-    # xml_dir = argv[1]  # directory containing xml files from the BNC corpus, full path
+    print('Program started, Will show a message when the program will end')
     xml_dir = os.path.join(os.getcwd(), 'XML_files')
-    # output_file_path = argv[2]  # output file name, full path
     output_file_path = os.path.join(os.getcwd(), 'output.txt')
 
     # Implement here your program:
@@ -161,14 +178,14 @@ def main():
     corpus = Corpus()
 
     print('Adding XML files')
-    xml_files_names = os.listdir(xml_dir)  # [:5]
+    xml_files_names = os.listdir(xml_dir)#[:5]
     for file in xml_files_names:
         corpus.add_xml_file_to_corpus(os.path.join(xml_dir, file))
 
     # 2. Create a language model based on the corpus.
     print('Building model')
     max_n = 3
-    linear_interpolation_params = (1, 1, 1)
+    linear_interpolation_params = (0.2, 0.35, 0.45)
     model = NGramModel(max_n, corpus, linear_interpolation_params)
     models_names = ('Unigrams Model', 'Bigrams Model', 'Trigrams Model')
 
@@ -188,8 +205,6 @@ def main():
             output_str += sentence + '\nProbability: ' + str(prob) + '\n'
         output_str += '\n'
 
-    output_file = open(output_file_path, 'w', encoding='utf8')
-
     # 4. Print onto the output file the results from the second task in the wanted format.
     print('Generating random sentences')
     num_of_sentences = 5
@@ -200,6 +215,7 @@ def main():
             output_str += model.generate_random_sentence(n + 1) + '\n'
         output_str += '\n'
 
+    output_file = open(output_file_path, 'w', encoding='utf8')
     output_file.write(output_str)
     output_file.close()
     print('Program ended')
