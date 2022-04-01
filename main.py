@@ -73,12 +73,12 @@ class Corpus:
 
 
 class NGramModel:
-    """
-    The NGramModel object holds several models' calculation and is defined by the max_n param
-    i.e: If max_n = 3, the obj will be able to perform as unigarm, Bigram and Trigram models.
-    All (public) methods accept the n that determines on which model the method will work
-    """
     def __init__(self, max_n, corpus, linear_interpolation_params: tuple):
+        """
+        The NGramModel object holds several models' calculation and is defined by the max_n param
+        i.e: If max_n = 3, the obj will be able to perform as unigarm, Bigram and Trigram models.
+        All (public) methods accept the n that determines on which model the method will work
+        """
         self.linear_interpolation_params = linear_interpolation_params
         self.corpus = corpus
         self.max_n = max_n
