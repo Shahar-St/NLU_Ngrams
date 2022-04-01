@@ -178,7 +178,7 @@ def main():
     corpus = Corpus()
 
     print('Adding XML files')
-    xml_files_names = os.listdir(xml_dir)#[:5]
+    xml_files_names = os.listdir(xml_dir)
     for file in xml_files_names:
         corpus.add_xml_file_to_corpus(os.path.join(xml_dir, file))
 
