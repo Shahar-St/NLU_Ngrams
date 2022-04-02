@@ -44,6 +44,7 @@ class Corpus:
         for sentence in tree.iter(tag='s'):
             # Adding sentence start token at the beginning of the sentence
             tokens = [Token('s', Token.SENTENCE_START_TOK)]
+            # tokens = []
             for word in sentence:
                 if word.tag in ('w', 'c'):
                     att = word.attrib
@@ -87,7 +88,8 @@ class NGramModel:
         # Create unigram model
         tokens = self.corpus.get_tokens()
         self.voc_sizes.append(len(set(tokens)))
-        self.num_of_words = len(tokens)
+        self.num_of_words = len(
+            [tok for tok in tokens if Token.SENTENCE_START_TOK not in tok and Token.SENTENCE_END_TOK not in tok])
 
         n_words_combinations = [tokens]
 
@@ -97,21 +99,38 @@ class NGramModel:
             for i in range(len(tokens) - k + 1):
                 k_combinations.append(' '.join(tokens[i:i + k]))
             n_words_combinations.append(k_combinations)
-            self.voc_sizes.append(len(set(k_combinations)))
+            self.voc_sizes.append(len(set(
+                [comb for comb in k_combinations
+                 if Token.SENTENCE_START_TOK not in comb and Token.SENTENCE_END_TOK not in comb]
+            )))
 
         counters = [dict(Counter(combination)) for combination in n_words_combinations]
         self.n_tokens_counters = counters
 
     def calculate_sentence_probability(self, sentence, n):
-        tokens = sentence.split(' ')
+        tokens = self._tokenize_sentence(sentence)
         prob = 0
         # calculate i < n grams for the beginning of the sentence
         for i in range(n - 1):
-            prob += self._calculate_combination_probability(' '.join(tokens[:i + 1]))
+            tok = ' '.join(tokens[:i + 1])
+            prob += self._calculate_combination_probability(tok)
         # calculate n grams
         for i in range(n - 1, len(tokens)):
-            prob += self._calculate_combination_probability(' '.join(tokens[i - n + 1:i + 1]))
+            tok = ' '.join(tokens[i - n + 1:i + 1])
+            prob += self._calculate_combination_probability(tok)
         return prob
+
+    @staticmethod
+    def _tokenize_sentence(sentence):
+        punctuations = r"""?!().,‘:;[]{}|"""
+        for sign in punctuations:
+            sentence = sentence.replace(sign, ' ' + sign + ' ')
+
+        sentence = sentence.replace('\'', ' \'')
+        sentence = sentence.replace('n \'t', ' n\'t')
+
+        tokens = [tok for tok in sentence.split(' ') if tok != '']
+        return tokens
 
     def _calculate_combination_probability(self, combination):
         combination_tokens = combination.split(' ')
@@ -134,7 +153,7 @@ class NGramModel:
 
         num = (self.n_tokens_counters[combination_len - 1].get(combination, 0) + 1) / (
                 num_of_w + self.voc_sizes[combination_len - 1])
-        return math.log(num, 2)
+        return math.log(num)
 
     def generate_random_sentence(self, n):
         # generate a random length
@@ -168,8 +187,10 @@ class NGramModel:
 
 
 def main():
-    print('Program started, Will show a message when the program will end')
+    print('Program started')
+    # xml_dir = argv[1]  # directory containing xml files from the BNC corpus, full path
     xml_dir = os.path.join(os.getcwd(), 'XML_files')
+    # output_file_path = argv[2]  # output file name, full path
     output_file_path = os.path.join(os.getcwd(), 'output.txt')
 
     # Implement here your program:
@@ -177,24 +198,27 @@ def main():
     print('Initializing Corpus')
     corpus = Corpus()
 
-    print('Adding XML files')
-    xml_files_names = os.listdir(xml_dir)
+    print('XML files Additions - In Progress...')
+    xml_files_names = os.listdir(xml_dir)  # [:3]
     for file in xml_files_names:
         corpus.add_xml_file_to_corpus(os.path.join(xml_dir, file))
+    print('XML files Additions - Done!')
 
     # 2. Create a language model based on the corpus.
-    print('Building model')
+    print('Model Building - In Progress...')
     max_n = 3
     linear_interpolation_params = (0.2, 0.35, 0.45)
     model = NGramModel(max_n, corpus, linear_interpolation_params)
     models_names = ('Unigrams Model', 'Bigrams Model', 'Trigrams Model')
+    print('Model Building - Done!')
 
     # 3. Calculate and print onto the output file the first task, in the wanted format.
+    print('Sentences Probability Calculation - In Progress...')
     sentences = [
-        'May the Force be with you',
-        'I’m going to make him an offer he can’t refuse.',
+        'May the Force be with you.',
+        'I\'m going to make him an offer he can\'t refuse.',
         'Ogres are like onions.',
-        'You’re tearing me apart, Lisa!',
+        'You\'re tearing me apart, Lisa!',
         'I live my life one quarter at a time.'
     ]
     output_str = '*** Sentence Predictions ***\n\n'
@@ -204,9 +228,10 @@ def main():
             prob = model.calculate_sentence_probability(sentence.lower(), n + 1)
             output_str += sentence + '\nProbability: ' + str(prob) + '\n'
         output_str += '\n'
+    print('Sentences Probability Calculation - Done!')
 
     # 4. Print onto the output file the results from the second task in the wanted format.
-    print('Generating random sentences')
+    print('Random Sentences Generation - In Progress...')
     num_of_sentences = 5
     output_str += '\n*** Random Sentence Generation ***\n\n'
     for n, model_name in enumerate(models_names):
@@ -214,7 +239,9 @@ def main():
         for i in range(num_of_sentences):
             output_str += model.generate_random_sentence(n + 1) + '\n'
         output_str += '\n'
+    print('Random Sentences Generation - Done!')
 
+    print(f'Writing output to {output_file_path}')
     output_file = open(output_file_path, 'w', encoding='utf8')
     output_file.write(output_str)
     output_file.close()
