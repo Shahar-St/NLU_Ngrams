@@ -245,7 +245,7 @@ def main():
     output_file = open(output_file_path, 'w', encoding='utf8')
     output_file.write(output_str)
     output_file.close()
-    print('Program ended')
+    print(f'Program ended.')
 
 
 if __name__ == '__main__':
